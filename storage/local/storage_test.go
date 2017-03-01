@@ -19,6 +19,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"runtime"
 	"strconv"
 	"sync/atomic"
 	"testing"
@@ -824,8 +825,7 @@ func TestLoop(t *testing.T) {
 	directory := testutil.NewTemporaryDirectory("test_storage", t)
 	defer directory.Close()
 	o := &MemorySeriesStorageOptions{
-		MemoryChunks:               50,
-		MaxChunksToPersist:         1000000,
+		TargetHeapSize:             100000,
 		PersistenceRetentionPeriod: 24 * 7 * time.Hour,
 		PersistenceStoragePath:     directory.Path(),
 		CheckpointInterval:         250 * time.Millisecond,
@@ -876,7 +876,6 @@ func testChunk(t *testing.T, encoding chunk.Encoding) {
 
 	for m := range s.fpToSeries.iter() {
 		s.fpLocker.Lock(m.fp)
-		defer s.fpLocker.Unlock(m.fp) // TODO remove, see below
 		var values []model.SamplePair
 		for _, cd := range m.series.chunkDescs {
 			if cd.IsEvicted() {
@@ -899,7 +898,7 @@ func testChunk(t *testing.T, encoding chunk.Encoding) {
 				t.Errorf("%d. Got %v; want %v", i, v.Value, samples[i].Value)
 			}
 		}
-		//s.fpLocker.Unlock(m.fp)
+		s.fpLocker.Unlock(m.fp)
 	}
 	log.Info("test done, closing")
 }
@@ -1458,8 +1457,8 @@ func testEvictAndLoadChunkDescs(t *testing.T, encoding chunk.Encoding) {
 	s, closer := NewTestStorage(t, encoding)
 	defer closer.Close()
 
-	// Adjust memory chunks to lower value to see evictions.
-	s.maxMemoryChunks = 1
+	// Adjust target heap size to lower value to see evictions.
+	s.targetHeapSize = 1000000
 
 	for _, sample := range samples {
 		s.Append(sample)
@@ -1477,7 +1476,7 @@ func testEvictAndLoadChunkDescs(t *testing.T, encoding chunk.Encoding) {
 	// Maintain series without any dropped chunks.
 	s.maintainMemorySeries(fp, 0)
 	// Give the evict goroutine an opportunity to run.
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(1250 * time.Millisecond)
 	// Maintain series again to trigger chunk.Desc eviction.
 	s.maintainMemorySeries(fp, 0)
 
@@ -1604,8 +1603,7 @@ func benchmarkFuzz(b *testing.B, encoding chunk.Encoding) {
 	directory := testutil.NewTemporaryDirectory("test_storage", b)
 	defer directory.Close()
 	o := &MemorySeriesStorageOptions{
-		MemoryChunks:               100,
-		MaxChunksToPersist:         1000000,
+		TargetHeapSize:             200000,
 		PersistenceRetentionPeriod: time.Hour,
 		PersistenceStoragePath:     directory.Path(),
 		CheckpointInterval:         time.Second,
@@ -2006,5 +2004,40 @@ func TestAppendOutOfOrder(t *testing.T) {
 		if !wantSamplePair.Equal(&gotSamplePair) {
 			t.Fatalf("want %v, got %v", wantSamplePair, gotSamplePair)
 		}
+	}
+}
+
+func TestCalculatePersistUrgency(t *testing.T) {
+	tests := map[string]struct {
+		persistUrgency                        int32
+		lenEvictList                          int
+		numChunksToPersist                    int64
+		targetHeapSize, msNextGC, msHeapAlloc uint64
+		msNumGC, lastNumGC                    uint32
+
+		wantPersistUrgency int32
+		wantChunksToEvict  int
+		wantLastNumGC      uint32
+	}{}
+
+	s, closer := NewTestStorage(t, 1)
+	defer closer.Close()
+
+	for scenario, test := range tests {
+		s.persistUrgency = test.persistUrgency
+		s.numChunksToPersist = test.numChunksToPersist
+		s.targetHeapSize = test.targetHeapSize
+		s.lastNumGC = test.lastNumGC
+		s.evictList.Init()
+		for i := 0; i < test.lenEvictList; i++ {
+			s.evictList.PushBack(&struct{}{})
+		}
+		ms := runtime.MemStats{
+			NextGC:    test.msNextGC,
+			HeapAlloc: test.msHeapAlloc,
+			NumGC:     test.msNumGC,
+		}
+		chunksToEvict := s.calculatePersistUrgency(&ms)
+
 	}
 }
