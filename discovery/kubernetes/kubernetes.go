@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
@@ -84,6 +85,7 @@ func (c *Role) UnmarshalYAML(unmarshal func(interface{}) error) error {
 type SDConfig struct {
 	APIServer          config_util.URL        `yaml:"api_server"`
 	Role               Role                   `yaml:"role"`
+	ConfigFile         string                 `yaml:"config_file,omitempty"`
 	BasicAuth          *config_util.BasicAuth `yaml:"basic_auth,omitempty"`
 	BearerToken        config_util.Secret     `yaml:"bearer_token,omitempty"`
 	BearerTokenFile    string                 `yaml:"bearer_token_file,omitempty"`
@@ -201,6 +203,11 @@ func New(l log.Logger, conf *SDConfig) (*Discovery, error) {
 		}
 		if conf.BasicAuth != nil {
 			level.Warn(l).Log("msg", "Configured basic authentication credentials are ignored when using pod service account")
+		}
+	} else if conf.ConfigFile != "" {
+		kcfg, err = clientcmd.BuildConfigFromFlags("", conf.ConfigFile)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		kcfg = &rest.Config{
