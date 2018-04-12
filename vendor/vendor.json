@@ -705,10 +705,10 @@
 			"revisionTime": "2016-08-03T19:07:31Z"
 		},
 		{
-			"checksumSHA1": "TAUvj09/lPHXKRl6NXnptwY+WJI=",
+			"checksumSHA1": "3C1HQgbVutlSfu+00f+GMHR4ab0=",
 			"path": "github.com/json-iterator/go",
-			"revision": "e7c7f3b33712573affdcc7a107218e7926b9a05b",
-			"revisionTime": "2018-02-14T06:06:32Z"
+			"revision": "aa4a561320b159744f8dedb8c5fd0ee6845ecc7e",
+			"revisionTime": "2018-04-10T19:01:05Z"
 		},
 		{
 			"checksumSHA1": "5qD45d0w7U3WJuN+mQxGLJCFV6w=",
@@ -978,9 +978,6 @@
 			"revisionTime": "2016-09-30T00:14:02Z"
 		},
 		{
-<<<<<<< HEAD
-			"checksumSHA1": "Y+HGqEkYM15ir+J93MEaHdyFy0c=",
-=======
 			"checksumSHA1": "1hwn8cgg4EVXhCpJIqmMbzqnUo0=",
 			"path": "golang.org/x/crypto/ed25519",
 			"revision": "94eea52f7b742c7cbe0b03b22f0c4c8631ece122",
@@ -1007,7 +1004,6 @@
 		},
 		{
 			"checksumSHA1": "GtamqiJoL7PGHsN454AoffBFMa8=",
->>>>>>> 13b437ea... add vendor
 			"path": "golang.org/x/net/context",
 			"revision": "054b33e6527139ad5b1ec2f6232c3b175bd9a30c",
 			"revisionTime": "2017-07-05T22:25:54Z"
